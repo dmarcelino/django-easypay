@@ -163,6 +163,22 @@ class TransactionNotification:
         return 'TransactionNotification id: {}'.format(self.id)
 
 
+class MbwayNotification:
+    def __init__(self, query_dict):
+        self.cin = query_dict.get('Cin')
+        self.entity = query_dict.get('Entity')
+        self.key = query_dict.get('Key')
+        self.reference = query_dict.get('Reference')
+        self.status = query_dict.get('Status')
+        self.status_message = query_dict.get('StatusMessage')
+        self.token = query_dict.get('Token')
+        self.type = query_dict.get('Type')
+        self.username = query_dict.get('Username')
+
+    def __str__(self):
+        return 'TransactionNotification id: {}'.format(self.id)
+
+
 def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIBANCO.value,
                    capture_transaction_key=None, capture_date=None, capture_descriptive=None, expiration_time=None,
                    currency='EUR', customer_account_id=None, customer_name=None, customer_email=None,
