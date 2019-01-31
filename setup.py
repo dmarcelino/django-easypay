@@ -8,6 +8,10 @@ setuptools.setup(
     version="0.0.1",
     author="Dario Marcelino",
     author_email="dario@appscot.com",
+    install_requires=[
+        'Django>=1.10',
+        'requests>=2.18.4',
+    ],
     description="A Django package for Easypay",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,4 +23,3 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
 )
-
