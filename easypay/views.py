@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+import json
 import logging
 
 from .api import TransactionNotification
@@ -19,11 +20,14 @@ def transaction_notification(request):
     :param request:
     :return:
     """
-    log.warning("Easypay incoming POST data: %s", request.body)  # TODO: debug
+    log.warning("Easypay incoming POST data: %s", request.body)  # TODO: info
 
-    notification = TransactionNotification(request.body)
+    encoding = request.POST.get('charset', 'utf-8')
+    data = json.loads(request.body.decode(encoding))
 
-    log.warning("Easypay notification: %s", notification)  # TODO: debug
+    notification = TransactionNotification(data)
+
+    log.debug("Easypay notification: %s", notification)
 
     notification_received.send(sender=transaction_notification, notification=notification)
 

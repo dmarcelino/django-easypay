@@ -135,8 +135,7 @@ class PaymentResponse:
 
 
 class TransactionNotification:
-    def __init__(self, request_payload):
-        request_dict = json.loads(request_payload)
+    def __init__(self, request_dict):
         self.id = request_dict.get('id')
         self.value = request_dict.get('value')
         self.currency = request_dict.get('currency')
@@ -144,8 +143,12 @@ class TransactionNotification:
         self.expiration_time = request_dict.get('expiration_time')
         self.customer = Customer(request_dict.get('customer', {}))
         self.method = request_dict.get('method')
-        self.transaction = Transaction(request_dict.get('transaction'))
+        self.transaction = Transaction(request_dict.get('transaction', {}))
         self.account_id = request_dict.get('account', {}).get('id')
+        self.request = request_dict
+
+    def __str__(self):
+        return 'TransactionNotification id: {}'.format(self.id)
 
 
 def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIBANCO.value,
