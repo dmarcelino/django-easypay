@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, unique
 from numbers import Number
 import json
 import requests
@@ -21,6 +21,29 @@ def get_messages(response_dict):
         return response_dict.get('messages')
     else:
         return response_dict.get('message')
+
+
+@unique
+class Type(Enum):
+    SALE = 'sale'
+    AUTHORISATION = 'authorisation'
+
+
+@unique
+class MethodEnum(Enum):
+    MULTIBANCO = 'mb'
+    CC = 'cc'
+    BB = 'bb'
+    MBWAY = 'mbw'
+    DEBITO_DIRECTO = 'dd'
+
+    @classmethod
+    def has_value(cls, value):
+        return any(value == item.value for item in cls)
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
 
 
 class EasypayApiException(Exception):
@@ -50,22 +73,12 @@ class EasypayApiException(Exception):
 
 
 class PaymentMethod:
-    payment_type = None
-    entity = None
-    reference = None
-    url = None
-    last_four = None
-    card_type = None
-    expiration_date = None
-    alias = None
-    status = None
-
     def __init__(self, dict):
         """
         Initialise PaymentMethod
         :param dict: 'method' dict from Easypay response
         """
-        self.payment_type = dict.get('type')
+        self.method_type = MethodEnum(dict.get('type', '').lower())
         self.entity = dict.get('entity')
         self.reference = dict.get('reference')
         self.url = dict.get('url')
@@ -76,14 +89,37 @@ class PaymentMethod:
         self.status = dict.get('status')
 
 
-class PaymentResponse:
-    status = None
-    messages = None
-    id = None
-    method = None
-    customer = None
-    response = None
+class Customer:
+    def __init__(self, data):
+        """
+        Initialise Customer
+        :param data: 'customer' dict from Easypay message
+        """
+        self.id = data.get('id')
+        self.name = data.get('name')
+        self.email = data.get('email')
+        self.phone = data.get('phone')
+        self.phone_indicative = data.get('phone_indicative')
+        self.fiscal_number = data.get('fiscal_number')
+        self.key = data.get('key')
 
+
+class Transaction:
+    def __init__(self, data):
+        """
+        Initialise Transaction
+        :param data: 'transaction' dict from Easypay message
+        """
+        self.id = data.get('id')
+        self.key = data.get('key')
+        self.transaction_type = data.get('type')
+        self.date = data.get('date')
+        self.values = data.get('values')
+        self.transfer_date = data.get('transfer_date')
+        self.document_number = data.get('document_number')
+
+
+class PaymentResponse:
     def __init__(self, response):
         """
         Initialise PaymentResponse
@@ -98,25 +134,18 @@ class PaymentResponse:
         self.response = response
 
 
-class Type(Enum):
-    SALE = 'sale'
-    AUTHORISATION = 'authorisation'
-
-
-class MethodEnum(Enum):
-    MULTIBANCO = 'mb'
-    CC = 'cc'
-    BB = 'bb'
-    MBWAY = 'mbw'
-    DEBITO_DIRECTO = 'dd'
-
-    @classmethod
-    def has_value(cls, value):
-        return any(value == item.value for item in cls)
-
-    @classmethod
-    def list(cls):
-        return list(map(lambda c: c.value, cls))
+class TransactionNotification:
+    def __init__(self, request_payload):
+        request_dict = json.loads(request_payload)
+        self.id = request_dict.get('id')
+        self.value = request_dict.get('value')
+        self.currency = request_dict.get('currency')
+        self.merchant_key = request_dict.get('key')
+        self.expiration_time = request_dict.get('expiration_time')
+        self.customer = Customer(request_dict.get('customer', {}))
+        self.method = request_dict.get('method')
+        self.transaction = Transaction(request_dict.get('transaction'))
+        self.account_id = request_dict.get('account', {}).get('id')
 
 
 def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIBANCO.value,
@@ -154,6 +183,9 @@ def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIB
 
     if not MethodEnum.has_value(method):
         raise ValueError('method must be one of {}.'.format(MethodEnum.list()))
+
+    if not merchant_key and settings.MERCHANT_KEY:
+        merchant_key = settings.MERCHANT_KEY
 
     if user:
         if not customer_name:
