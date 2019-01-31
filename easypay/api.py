@@ -88,6 +88,9 @@ class PaymentMethod:
         self.alias = dict.get('alias')
         self.status = dict.get('status')
 
+    def __str__(self):
+        return 'PaymentMethod reference: {}'.format(self.reference)
+
 
 class Customer:
     def __init__(self, data):
@@ -102,6 +105,9 @@ class Customer:
         self.phone_indicative = data.get('phone_indicative')
         self.fiscal_number = data.get('fiscal_number')
         self.key = data.get('key')
+
+    def __str__(self):
+        return 'Customer id: {}'.format(self.id)
 
 
 class Transaction:
@@ -118,6 +124,9 @@ class Transaction:
         self.transfer_date = data.get('transfer_date')
         self.document_number = data.get('document_number')
 
+    def __str__(self):
+        return 'Transaction id: {}'.format(self.id)
+
 
 class PaymentResponse:
     def __init__(self, response):
@@ -130,8 +139,11 @@ class PaymentResponse:
         self.messages = get_messages(response_dict)
         self.id = response_dict.get('id')
         self.method = PaymentMethod(response_dict.get('method'))
-        self.customer = response_dict.get('customer', {}).get('id')
+        self.customer_id = response_dict.get('customer', {}).get('id')
         self.response = response
+
+    def __str__(self):
+        return 'PaymentResponse id: {}'.format(self.id)
 
 
 class TransactionNotification:
