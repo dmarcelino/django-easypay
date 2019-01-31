@@ -11,12 +11,99 @@ AUTH_HEADERS = {
 }
 
 
+def get_messages(response_dict):
+    """
+    docs say 'messages' but server returns 'message'...
+    :param response_dict:
+    :return:
+    """
+    if 'messages' in response_dict:
+        return response_dict.get('messages')
+    else:
+        return response_dict.get('message')
+
+
+class EasypayApiException(Exception):
+    """Exception raised for Easypay API failed requests."""
+    status = None
+    messages = []
+    response = None
+
+    def __init__(self, response):
+        try:
+            response_dict = response.json()
+            status = response_dict.get('status')
+            messages = get_messages(response_dict)
+        except: # noqa
+            status = status or response.status_code
+            messages = [response.text or ""]
+        self.status = status
+        self.messages = messages
+        self.response = response
+        message = 'Call to {uri} returned {status}, errors: \n - {errors}'.format(
+            uri=response.url,
+            status=status,
+            errors='\n - '.join(messages)
+        )
+
+        super(EasypayApiException, self).__init__(message)
+
+
+class PaymentMethod:
+    payment_type = None
+    entity = None
+    reference = None
+    url = None
+    last_four = None
+    card_type = None
+    expiration_date = None
+    alias = None
+    status = None
+
+    def __init__(self, dict):
+        """
+        Initialise PaymentMethod
+        :param dict: 'method' dict from Easypay response
+        """
+        self.payment_type = dict.get('type')
+        self.entity = dict.get('entity')
+        self.reference = dict.get('reference')
+        self.url = dict.get('url')
+        self.last_four = dict.get('last_four')
+        self.card_type = dict.get('card_type')
+        self.expiration_date = dict.get('expiration_date')
+        self.alias = dict.get('alias')
+        self.status = dict.get('status')
+
+
+class PaymentResponse:
+    status = None
+    messages = None
+    id = None
+    method = None
+    customer = None
+    response = None
+
+    def __init__(self, response):
+        """
+        Initialise PaymentResponse
+        :param response: requests Response from Easypay
+        """
+        response_dict = response.json()
+        self.status = response_dict.get('status')
+        self.messages = get_messages(response_dict)
+        self.id = response_dict.get('id')
+        self.method = PaymentMethod(response_dict.get('method'))
+        self.customer = response_dict.get('customer', {}).get('id')
+        self.response = response
+
+
 class Type(Enum):
     SALE = 'sale'
     AUTHORISATION = 'authorisation'
 
 
-class Method(Enum):
+class MethodEnum(Enum):
     MULTIBANCO = 'mb'
     CC = 'cc'
     BB = 'bb'
@@ -32,27 +119,17 @@ class Method(Enum):
         return list(map(lambda c: c.value, cls))
 
 
-def authentication():
-    check_auth_params()
-    url = "{}/single".format(settings.BACKEND_URL)
-    payload = {
-        'type': Type.AUTHORISATION.value,
-        'value': 1.0,
-        'method': Method.MULTIBANCO.value,
-    }
-    r = requests.post(url, headers=AUTH_HEADERS, data=json.dumps(payload))
-    return r
-
-
-def single_payment(value, method=Method.MULTIBANCO.value, capture_transaction_key=None, capture_date=None,
-                   capture_descriptive=None, expiration_time=None, currency='EUR', customer_account_id=None,
-                   customer_name=None, customer_email=None, customer_phone=None, customer_phone_indicative='+351',
-                   customer_fiscal_number=None, customer_key=None, merchant_key=None, user=None):
+def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIBANCO.value,
+                   capture_transaction_key=None, capture_date=None, capture_descriptive=None, expiration_time=None,
+                   currency='EUR', customer_account_id=None, customer_name=None, customer_email=None,
+                   customer_phone=None, customer_phone_indicative='+351', customer_fiscal_number=None,
+                   customer_key=None, merchant_key=None, user=None):
     """
     Payments used on a one time purchase
 
     :param value: number <double> Required
-    :param method: string Required valid values "mb" "cc" "bb" "mbw" "dd"
+    :param payment_type: string valid values: "sale" "authorisation"
+    :param method: string Required valid values: "mb" "cc" "bb" "mbw" "dd"
     :param capture_transaction_key: string Your internal key identifying this capture
     :param capture_date: string <YYYY-mm-dd>
     :param capture_descriptive: string This will appear in the bank statement/mbway application
@@ -75,8 +152,8 @@ def single_payment(value, method=Method.MULTIBANCO.value, capture_transaction_ke
     if not isinstance(value, Number):
         raise ValueError('value must be a number.')
 
-    if not Method.has_value(method):
-        raise ValueError('method must be one of {}.'.format(Method.list()))
+    if not MethodEnum.has_value(method):
+        raise ValueError('method must be one of {}.'.format(MethodEnum.list()))
 
     if user:
         if not customer_name:
@@ -87,7 +164,7 @@ def single_payment(value, method=Method.MULTIBANCO.value, capture_transaction_ke
             customer_key = str(user.id)
 
     payload = {
-        'type': Type.SALE.value,
+        'type': payment_type,
         'capture': {
             'transaction_key': capture_transaction_key,
             'capture_date': capture_date,
@@ -112,10 +189,18 @@ def single_payment(value, method=Method.MULTIBANCO.value, capture_transaction_ke
         'method': method,
     }
     r = requests.post(url, headers=AUTH_HEADERS, data=json.dumps(payload))
-    return r
+
+    if not r.ok:
+        raise EasypayApiException(r)
+    return PaymentResponse(r)
 
 
 def get_payment(id):
+    """
+    Shows single payment details
+    :param id: string <uuid> Required  Resource Identification
+    :return:
+    """
     check_auth_params()
     url = "{}/single/{}".format(settings.BACKEND_URL,id)
 
@@ -123,6 +208,25 @@ def get_payment(id):
         raise ValueError('id must be a UUID string.')
 
     r = requests.get(url, headers=AUTH_HEADERS)
+
+    if not r.ok:
+        raise EasypayApiException(r)
+    return PaymentResponse(r)
+
+
+def delete_payment(id):
+    """
+    Deletes single payment
+    :param id: string <uuid> Required  Resource Identification
+    :return:
+    """
+    check_auth_params()
+    url = "{}/single/{}".format(settings.BACKEND_URL,id)
+
+    if not id:
+        raise ValueError('id must be a UUID string.')
+
+    r = requests.delete(url, headers=AUTH_HEADERS)
     return r
 
 
