@@ -24,13 +24,13 @@ def get_messages(response_dict):
 
 
 @unique
-class Type(Enum):
+class PaymentType(Enum):
     SALE = 'sale'
     AUTHORISATION = 'authorisation'
 
 
 @unique
-class MethodEnum(Enum):
+class MethodType(Enum):
     MULTIBANCO = 'mb'
     CC = 'cc'
     BB = 'bb'
@@ -78,7 +78,7 @@ class PaymentMethod:
         Initialise PaymentMethod
         :param dict: 'method' dict from Easypay response
         """
-        self.method_type = MethodEnum(dict.get('type', '').lower())
+        self.method_type = MethodType(dict.get('type', '').lower())
         self.entity = dict.get('entity')
         self.reference = dict.get('reference')
         self.url = dict.get('url')
@@ -179,11 +179,11 @@ class MbwayNotification:
         return 'TransactionNotification id: {}'.format(self.id)
 
 
-def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIBANCO.value,
+def single_payment(value, payment_type=PaymentType.SALE.value, method=MethodType.MULTIBANCO.value,
                    capture_transaction_key=None, capture_date=None, capture_descriptive=None, expiration_time=None,
                    currency='EUR', customer_account_id=None, customer_name=None, customer_email=None,
                    customer_phone=None, customer_phone_indicative='+351', customer_fiscal_number=None,
-                   customer_key=None, merchant_key=None, user=None):
+                   customer_key=None, merchant_key=None):
     """
     Payments used on a one time purchase
 
@@ -203,7 +203,6 @@ def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIB
     :param customer_fiscal_number: string Fiscal Number must be prefixed with country code
     :param customer_key: string
     :param merchant_key: string Merchant identification key
-    :param user: Django User object optional
     :return:
     """
     check_auth_params()
@@ -212,19 +211,8 @@ def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIB
     if not isinstance(value, Number):
         raise ValueError('value must be a number.')
 
-    if not MethodEnum.has_value(method):
-        raise ValueError('method must be one of {}.'.format(MethodEnum.list()))
-
-    if not merchant_key and settings.MERCHANT_KEY:
-        merchant_key = settings.MERCHANT_KEY
-
-    if user:
-        if not customer_name:
-            customer_name = user.get_full_name()
-        if not customer_email:
-            customer_email = user.email
-        if not customer_key:
-            customer_key = str(user.id)
+    if not MethodType.has_value(method):
+        raise ValueError('method must be one of {}.'.format(MethodType.list()))
 
     payload = {
         'type': payment_type,
@@ -244,7 +232,7 @@ def single_payment(value, payment_type=Type.SALE.value, method=MethodEnum.MULTIB
             'email': customer_email,
             'phone': customer_phone,
             'phone_indicative': customer_phone_indicative,
-            'fiscal_number': customer_fiscal_number,
+            'fiscal_number': str(customer_fiscal_number),
             'key': customer_key,
         },
         'key': merchant_key,

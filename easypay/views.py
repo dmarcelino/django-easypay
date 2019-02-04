@@ -42,7 +42,6 @@ def mbway_notification(request):
 
     encoding = request.POST.get('charset', 'utf-8')
     data = QueryDict(request.body, encoding=encoding).copy()
-    log.debug("Easypay MBWay notification data: %s", data)
 
     notification = MbwayNotification(data)
     log.debug("Easypay MBWay notification: %s", vars(notification))
