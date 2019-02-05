@@ -53,6 +53,7 @@ class EasypayApiException(Exception):
     response = None
 
     def __init__(self, response):
+        status = None
         try:
             response_dict = response.json()
             status = response_dict.get('status')

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="django-easypay",
-    version="0.1.0",
+    version="0.1.1",
     author="Dario Marcelino",
     author_email="dario@appscot.com",
     install_requires=[
