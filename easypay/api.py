@@ -46,6 +46,20 @@ class MethodType(Enum):
         return list(map(lambda c: c.value, cls))
 
 
+@unique
+class NotificationType(Enum):
+    AUTHORISATION = 'authorisation'
+    CAPTURE = 'capture'
+    FREQUENT_CREATE = 'frequent_create'
+    VOID = 'void'
+
+
+@unique
+class NotificationStatus(Enum):
+    FAILED = 'failed'
+    SUCCESS = 'success'
+
+
 class EasypayApiException(Exception):
     """Exception raised for Easypay API failed requests."""
     status = None
@@ -145,6 +159,20 @@ class PaymentResponse:
 
     def __str__(self):
         return 'PaymentResponse id: {}'.format(self.id)
+
+
+class GenericNotification:
+    def __init__(self, request_dict):
+        self.id = request_dict.get('id')
+        self.merchant_key = request_dict.get('key')
+        self.type = NotificationType(request_dict.get('type', '').lower())
+        self.status = NotificationStatus(request_dict.get('status', '').lower())
+        self.messages = get_messages(request_dict)
+        self.date = request_dict.get('date')
+        self.request = request_dict
+
+    def __str__(self):
+        return 'GenericNotification id: {}'.format(self.id)
 
 
 class TransactionNotification:
