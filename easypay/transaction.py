@@ -1,5 +1,4 @@
 from django.apps import apps
-from django.contrib.sites.shortcuts import get_current_site
 import logging
 from uuid import uuid4
 
@@ -36,13 +35,13 @@ def _single_payment(*args, **kwargs):
                                           customer_email=customer_email, customer_key=customer_key, *args, **kwargs)
 
     payment_record = None
-    try:
-        if settings.PERSIST_TRANSACTIONS_CLASS:
+    if settings.PERSIST_TRANSACTIONS_CLASS:
+        try:
             PaymentModel = apps.get_model(settings.PERSIST_TRANSACTIONS_CLASS)
             payment_record = PaymentModel.create(merchant_key, value, payment_response, user)
             payment_record.save()
-    except Exception as e:
-        log.error('Failed to save payment with id [%s] to database, error: %s.', payment_response.id, e, exc_info=True)
+        except Exception as e:
+            log.error('Failed to save payment with id [%s] to database, error: %s.', payment_response.id, e, exc_info=True)
 
     return payment_response, payment_record
 
@@ -68,14 +67,14 @@ def single_payment(*args, **kwargs):
     :param customer_key: string
     :param merchant_key: string Merchant identification key
     :param user: Django User object optional
-    :return:
+    :return: PaymentResponse
     """
     return _single_payment(*args, **kwargs)[0]
 
 
 def single_payment_db(*args, **kwargs):
     """
-    Payments used on a one time purchase
+    Payments used on a one time purchase. Same as single_payment but returns DB record as well
 
     :param value: number <double> Required
     :param payment_type: string valid values: "sale" "authorisation"
@@ -94,6 +93,6 @@ def single_payment_db(*args, **kwargs):
     :param customer_key: string
     :param merchant_key: string Merchant identification key
     :param user: Django User object optional
-    :return:
+    :return: Tuple of PaymentResponse and Payment record
     """
     return _single_payment(*args, **kwargs)

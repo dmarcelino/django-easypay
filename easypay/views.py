@@ -1,3 +1,4 @@
+from django.apps import apps
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, QueryDict
 from django.views.decorators.csrf import csrf_exempt
@@ -5,8 +6,8 @@ from django.views.decorators.http import require_POST
 import json
 import logging
 
-from .api import GenericNotification, TransactionNotification, MbwayNotification
-from .settings import NOTIFICATION_CODE_GENERIC, NOTIFICATION_CODE_AUTHORISATION, NOTIFICATION_CODE_TRANSACTION
+from . import settings
+from .api import GenericNotification, TransactionNotification, MbwayNotification, get_payment
 from .signals import notification_received
 
 
@@ -26,7 +27,7 @@ def generic_notification(request):
 
     easypay_code = request.META.get('HTTP_X_EASYPAY_CODE')
     log.debug("generic_notification, Easypay X_EASYPAY_CODE header: \n%s", easypay_code)
-    if NOTIFICATION_CODE_GENERIC and NOTIFICATION_CODE_GENERIC != easypay_code:
+    if settings.NOTIFICATION_CODE_GENERIC and settings.NOTIFICATION_CODE_GENERIC != easypay_code:
         log.warning("generic_notification, permission denied, X_EASYPAY_CODE: \n%s", easypay_code)
         raise PermissionDenied("Permission Denied")
 
@@ -54,7 +55,7 @@ def authorisation_notification(request):
 
     easypay_code = request.META.get('HTTP_X_EASYPAY_CODE')
     log.debug("generic_notification, Easypay X_EASYPAY_CODE header: \n%s", easypay_code)
-    if NOTIFICATION_CODE_AUTHORISATION and NOTIFICATION_CODE_AUTHORISATION != easypay_code:
+    if settings.NOTIFICATION_CODE_AUTHORISATION and settings.NOTIFICATION_CODE_AUTHORISATION != easypay_code:
         log.warning("authorisation_notification, permission denied, X_EASYPAY_CODE: \n%s", easypay_code)
         raise PermissionDenied("Permission Denied")
 
@@ -73,7 +74,7 @@ def transaction_notification(request):
 
     easypay_code = request.META.get('HTTP_X_EASYPAY_CODE')
     log.debug("generic_notification, Easypay X_EASYPAY_CODE header: \n%s", easypay_code)
-    if NOTIFICATION_CODE_TRANSACTION and NOTIFICATION_CODE_TRANSACTION != easypay_code:
+    if settings.NOTIFICATION_CODE_TRANSACTION and settings.NOTIFICATION_CODE_TRANSACTION != easypay_code:
         log.warning("transaction_notification, permission denied, X_EASYPAY_CODE: \n%s", easypay_code)
         raise PermissionDenied("Permission Denied")
 
@@ -84,6 +85,17 @@ def transaction_notification(request):
 
     log.debug("Easypay transaction notification: %s, transaction: %s",
               vars(notification), vars(notification.transaction))
+
+    if settings.PERSIST_TRANSACTIONS_CLASS:
+        try:
+            PaymentModel = apps.get_model(settings.PERSIST_TRANSACTIONS_CLASS)
+            payment_record = PaymentModel.objects.get(easypay_id=notification.transaction.id)
+            payment_response = get_payment(notification.transaction.id)  # we could probably use the notification
+            payment_record.status = payment_response.method.status
+            payment_record.save()
+            log.debug('Updated payment with id [%s] in the database.', notification.transaction.id)
+        except Exception as e:
+            log.error('Failed to update payment with id [%s] in the database, error: %s.', notification.transaction.id, e, exc_info=True)
 
     notification_received.send(sender=transaction_notification, notification=notification)
 
