@@ -6,9 +6,8 @@ from django.views.decorators.http import require_POST
 import json
 import logging
 
-from . import settings
+from . import settings, signals
 from .api import GenericNotification, TransactionNotification, MbwayNotification, get_payment
-from .signals import notification_received
 
 
 log = logging.getLogger(__name__)
@@ -38,7 +37,7 @@ def generic_notification(request):
 
     log.debug("Easypay generic notification: %s", vars(notification))
 
-    notification_received.send(sender=generic_notification, notification=notification)
+    signals.generic_notification.send(sender=generic_notification, notification=notification)
 
     return HttpResponse("OK")
 
@@ -91,13 +90,12 @@ def transaction_notification(request):
             PaymentModel = apps.get_model(settings.PERSIST_TRANSACTIONS_CLASS)
             payment_record = PaymentModel.objects.get(easypay_id=notification.transaction.id)
             payment_response = get_payment(notification.transaction.id)  # we could probably use the notification
-            payment_record.status = payment_response.method.status
-            payment_record.save()
+            payment_record.update(payment_response)
             log.debug('Updated payment with id [%s] in the database.', notification.transaction.id)
         except Exception as e:
             log.error('Failed to update payment with id [%s] in the database, error: %s.', notification.transaction.id, e, exc_info=True)
 
-    notification_received.send(sender=transaction_notification, notification=notification)
+    signals.transaction_notification.send(sender=transaction_notification, notification=notification)
 
     return HttpResponse("OK")
 
@@ -114,6 +112,6 @@ def mbway_notification(request):
     notification = MbwayNotification(data)
     log.debug("Easypay MBWay notification: %s", vars(notification))
 
-    notification_received.send(sender=transaction_notification, notification=notification)
+    signals.mbway_notification.send(sender=mbway_notification, notification=notification)
 
     return HttpResponse("OK")

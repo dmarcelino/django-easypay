@@ -30,8 +30,25 @@ class AbstractPayment(models.Model):
     def __str__(self):
         return self.easypay_id
 
+    def update(self, payment_response):
+        """
+        Updates an AbstractPayment record from payment_response
+        :param payment_response:
+        :return:
+        """
+        self.status = payment_response.method.status
+        return self.save()
+
     @classmethod
     def create(cls, merchant_key, value, payment_response, user):
+        """
+        Creates an AbstractPayment record from payment_response
+        :param merchant_key:
+        :param value:
+        :param payment_response:
+        :param user:
+        :return:
+        """
         return cls(easypay_id=payment_response.id,
                    merchant_key=merchant_key,
                    amount=value,
