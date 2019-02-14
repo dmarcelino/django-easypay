@@ -34,6 +34,9 @@ def _single_payment(*args, **kwargs):
     payment_response = api_single_payment(merchant_key=merchant_key, customer_name=customer_name,
                                           customer_email=customer_email, customer_key=customer_key, *args, **kwargs)
 
+    log.debug('easypay payment created with id [%s], method: %s',
+              payment_response.id, vars(payment_response.method))
+
     payment_record = None
     if settings.PERSIST_TRANSACTIONS_CLASS:
         try:

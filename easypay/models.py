@@ -2,10 +2,11 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
-from .api import MethodType
+from .api import MethodStatus, MethodType
 
 
 METHOD_TYPE_CHOICES = [(x.value, _(x.name)) for x in MethodType]
+METHOD_STATUS_CHOICES = [(x.value, _(x.name)) for x in MethodStatus]
 
 
 # Create your models here.
@@ -13,7 +14,7 @@ class AbstractPayment(models.Model):
     easypay_id = models.CharField(_('Easypay ID'), max_length=100, unique=True)
     merchant_key = models.CharField(_('Merchant Key'), max_length=100, blank=True)
     amount = models.DecimalField(_('Amount'), max_digits=10, decimal_places=2, null=True, blank=True)
-    status = models.CharField(_('Status'), max_length=100)
+    status = models.CharField(_('Status'), max_length=100, choices=METHOD_STATUS_CHOICES)
     method_type = models.CharField(_('Method Type'), max_length=10, choices=METHOD_TYPE_CHOICES, blank=True)
     customer_id = models.CharField(_('Customer ID'), max_length=100, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,

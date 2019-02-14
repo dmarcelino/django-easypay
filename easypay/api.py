@@ -47,6 +47,17 @@ class MethodType(Enum):
 
 
 @unique
+class MethodStatus(Enum):
+    PENDING = 'pending'
+    ACTIVE = 'active'
+    DELETED = 'deleted'
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
+
+@unique
 class NotificationType(Enum):
     AUTHORISATION = 'authorisation'
     CAPTURE = 'capture'
