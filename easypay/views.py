@@ -88,12 +88,12 @@ def transaction_notification(request):
     if settings.PERSIST_TRANSACTIONS_CLASS:
         try:
             PaymentModel = apps.get_model(settings.PERSIST_TRANSACTIONS_CLASS)
-            payment_record = PaymentModel.objects.get(easypay_id=notification.transaction.id)
-            payment_response = get_payment(notification.transaction.id)  # we could probably use the notification
+            payment_record = PaymentModel.objects.get(easypay_id=notification.id)
+            payment_response = get_payment(notification.id)  # notification.transaction.id can be different than id
             payment_record.update(payment_response)
-            log.debug('Updated payment with id [%s] in the database.', notification.transaction.id)
+            log.debug('Updated payment with id [%s] in the database.', notification.id)
         except Exception as e:
-            log.error('Failed to update payment with id [%s] in the database, error: %s.', notification.transaction.id, e, exc_info=True)
+            log.error('Failed to update payment with id [%s] in the database, error: %s.', notification.id, e, exc_info=True)
 
     signals.transaction_notification.send(sender=transaction_notification, notification=notification)
 
